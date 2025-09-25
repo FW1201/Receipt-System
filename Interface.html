@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <style>
+    body { 
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+      font-family: 'Microsoft JhengHei', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+      min-height: 100vh;
+    }
+    .card { 
+      border: none; 
+      box-shadow: 0 8px 32px rgba(0,0,0,0.1); 
+      backdrop-filter: blur(10px);
+      border-radius: 16px;
+    }
+    .signature-pad { 
+      border: 2px solid #e9ecef; 
+      border-radius: 8px; 
+      width: 100%; 
+      height: 200px; 
+      background: #fff; 
+      cursor: crosshair;
+      transition: border-color 0.3s ease;
+    }
+    .signature-pad:hover { border-color: #0d6efd; }
+    canvas { width: 100%; height: 100%; }
+    .file-upload { 
+      border: 2px dashed #ced4da; 
+      border-radius: 8px; 
+      padding: 30px; 
+      text-align: center; 
+      cursor: pointer;
+      transition: all 0.3s ease;
+      background: #f8f9fa;
+    }
+    .file-upload:hover { 
+      border-color: #0d6efd; 
+      background-color: #e3f2fd; 
+      transform: translateY(-2px);
+    }
+    .btn { border-radius: 8px; font-weight: 500; }
+    .form-control, .form-select { border-radius: 8px; }
+    .alert { border-radius: 12px; }
+    .table { border-radius: 12px; overflow: hidden; }
+    .status-badge { font-size: 0.75rem; padding: 0.25rem 0.5rem; }
+  </style>
+</head>
+<body>
+
+<? if (typeof mode === 'undefined') { ?>
+  <!-- 管理員登入檢查 -->
+  <div id="login-check" class="container">
+    <div class="row vh-100 justify-content-center align-items-center">
+      <div class="col-md-6 col-lg-4">
+        <div class="card p-4 bg-white bg-opacity-95">
+          <div class="card-body text-center">
+            <div class="mb-4">
+              <i class="bi bi-shield-check text-primary" style="font-size: 3rem;"></i>
+            </div>
+            <h3 class="mb-4 text-primary">電子領據管理後台</h3>
+            <div class="alert alert-info border-0">
+              <small><i class="bi bi-info-circle"></i> 僅限系統部署者登入<br><strong id="admin-email" class="text-primary">載入中...</strong></small>
+            </div>
+            <div class="spinner-border text-primary mb-3" role="status"></div>
+            <p class="text-muted">正在驗證管理員身份...</p>
+            <div id="error-message" class="alert alert-danger mt-3 d-none border-0"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 管理員儀表板 -->
+  <div id="admin-dashboard" class="container-fluid my-4 d-none">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <div>
+        <h2 class="text-white mb-1"><i class="bi bi-speedometer2"></i> 管理員儀表板</h2>
+        <small class="text-white-50">電子領據系統管理中心</small>
+      </div>
+      <div class="text-end">
+        <small class="text-white-50 d-block">當前管理員</small>
+        <small class="text-white"><i class="bi bi-person-check"></i> <span id="current-user"></span></small>
+      </div>
+    </div>
+
+    <!-- 發送邀請卡片 -->
+    <div class="card mb-4 bg-white bg-opacity-95">
+      <div class="card-header bg-primary text-white">
+        <h5 class="mb-0"><i class="bi bi-send-fill"></i> 發送領據邀請</h5>
+      </div>
+      <div class="card-body">
+        <form id="invitationForm">
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label fw-bold">領據抬頭 <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="receiptHeader" placeholder="例如：財團法人某某基金會、某某股份有限公司" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold">領款人姓名 <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="recipientName" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold">Email <span class="text-danger">*</span></label>
+              <input type="email" class="form-control" id="recipientEmail" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold">撥款/邀約單位 <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="payerUnit" placeholder="例：財團法人某某基金會" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold">事件名稱 <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="eventName" placeholder="例：講座演講、活動協助" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold">事由 <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="eventReason" placeholder="例：專題演講費、活動協助費" required>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label fw-bold">金額 (新台幣) <span class="text-danger">*</span></label>
+              <input type="number" class="form-control" id="amount" min="1" required>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label fw-bold">時數 <span class="text-danger">*</span></label>
+              <input type="number" class="form-control" id="hours" step="0.5" min="0.5" required>
+            </div>
+          </div>
+          <div class="mt-4">
+            <button type="submit" class="btn btn-primary btn-lg">
+              <i class="bi bi-send"></i> 發送邀請
+            </button>
+            <div id="invite-loading" class="d-inline-block ms-3 d-none">
+              <div class="spinner-border spinner-border-sm text-primary"></div>
+              <span class="ms-2 text-muted">發送中...</span>
+            </div>
+          </div>
+        </form>
+        <div id="invite-message" class="mt-3"></div>
+      </div>
+    </div>
+
+    <!-- 紀錄管理卡片 -->
+    <div class="card bg-white bg-opacity-95">
+      <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="bi bi-table"></i> 填寫紀錄管理</h5>
+        <button class="btn btn-light btn-sm" id="refresh-btn">
+          <i class="bi bi-arrow-clockwise"></i> 重新整理
+        </button>
+      </div>
+      <div class="card-body">
+        <div id="records-loading" class="text-center py-5">
+          <div class="spinner-border text-primary"></div>
+          <p class="mt-3 text-muted">載入紀錄中...</p>
+        </div>
+        <div id="records-table-container" class="table-responsive d-none">
+          <table class="table table-hover align-middle">
+            <thead class="table-dark">
+              <tr>
+                <th>狀態</th><th>抬頭</th><th>領款人</th><th>Email</th><th>金額</th><th>時數</th><th>事件</th><th>提交時間</th><th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="records-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      loadAdminInfo();
+      checkLogin();
+    });
+
+    function loadAdminInfo() {
+      google.script.run
+        .withSuccessHandler(adminEmail => {
+          document.getElementById('admin-email').textContent = adminEmail || '系統管理員';
+        })
+        .withFailureHandler(() => {
+          document.getElementById('admin-email').textContent = '系統管理員';
+        })
+        .getAdminEmail();
+    }
+
+    let loginRetryCount = 0;
+    const maxRetries = 3;
+    
+    function checkLogin() {
+      google.script.run
+        .withSuccessHandler(response => {
+          if (response && response.success) {
+            document.getElementById('login-check').classList.add('d-none');
+            document.getElementById('admin-dashboard').classList.remove('d-none');
+            document.getElementById('current-user').textContent = response.user;
+            initAdminFunctions();
+          } else {
+            const message = response ? response.message : '未知錯誤';
+            showLoginError('驗證失敗', message);
+          }
+        })
+        .withFailureHandler(error => {
+          loginRetryCount++;
+          if (loginRetryCount < maxRetries) {
+            setTimeout(() => {
+              document.querySelector('#login-check p').textContent = `驗證失敗，正在重試... (${loginRetryCount}/${maxRetries})`;
+              checkLogin();
+            }, 2000);
+          } else {
+            showLoginError('驗證失敗', error.message || '系統錯誤，請稍後再試');
+          }
+        })
+        .verifyAdminLogin();
+    }
+    
+    function showLoginError(title, message) {
+      document.querySelector('#login-check .spinner-border').classList.add('d-none');
+      document.querySelector('#login-check p').textContent = title;
+      document.getElementById('error-message').innerHTML = `
+        <strong>錯誤訊息：</strong>${message}<br>
+        <small class="mt-2 d-block">
+          <strong>解決方法：</strong><br>
+          1. 確認 Web App 部署設定為「執行身份：我」<br>
+          2. 在試算表中執行「電子領據系統」→「🚀 首次設定」<br>
+          3. 使用部署者 Google 帳號登入<br>
+          4. 如問題持續，請重新部署 Web App
+        </small>
+      `;
+      document.getElementById('error-message').classList.remove('d-none');
+    }
+
+    function initAdminFunctions() {
+      loadRecords();
+      document.getElementById('refresh-btn').addEventListener('click', loadRecords);
+      
+      document.getElementById('invitationForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const loading = document.getElementById('invite-loading');
+        const message = document.getElementById('invite-message');
+        const submitBtn = e.target.querySelector('button[type="submit"]');
+        
+        loading.classList.remove('d-none');
+        submitBtn.disabled = true;
+        message.innerHTML = '';
+        
+        google.script.run
+          .withSuccessHandler(response => {
+            loading.classList.add('d-none');
+            submitBtn.disabled = false;
+            if (response.includes('已發送')) {
+              message.innerHTML = `<div class="alert alert-success border-0"><i class="bi bi-check-circle"></i> ${response}</div>`;
+              document.getElementById('invitationForm').reset();
+              loadRecords();
+            } else {
+              message.innerHTML = `<div class="alert alert-warning border-0"><i class="bi bi-exclamation-triangle"></i> ${response}</div>`;
+            }
+          })
+          .withFailureHandler(err => {
+            loading.classList.add('d-none');
+            submitBtn.disabled = false;
+            message.innerHTML = `<div class="alert alert-danger border-0"><i class="bi bi-x-circle"></i> 發送失敗：${err.message}</div>`;
+          })
+          .sendInvitation({
+            receiptHeader: document.getElementById('receiptHeader').value,
+            recipientName: document.getElementById('recipientName').value,
+            recipientEmail: document.getElementById('recipientEmail').value,
+            payerUnit: document.getElementById('payerUnit').value,
+            eventName: document.getElementById('eventName').value,
+            eventReason: document.getElementById('eventReason').value,
+            amount: document.getElementById('amount').value,
+            hours: document.getElementById('hours').value
+          });
+      });
+    }
+  </script>
+
+<? } else if (mode === 'form') { ?>
+  <!-- 領款人填寫介面 -->
+  <div class="container my-4">
+    <div class="card mx-auto bg-white bg-opacity-95" style="max-width: 800px;">
+      <div class="card-header bg-primary text-white text-center">
+        <h2 class="mb-0"><i class="bi bi-file-earmark-text"></i> 電子領據填報</h2>
+      </div>
+      <div class="card-body p-4">
+        <div class="alert alert-info border-0 mb-4">
+          <h6 class="alert-heading"><i class="bi bi-info-circle"></i> 領據資訊</h6>
+          <hr>
+          <div class="row">
+            <div class="col-md-6">
+              <p class="mb-1"><strong>領據抬頭：</strong><?= data.receiptHeader ?></p>
+              <p class="mb-1"><strong>領款人：</strong><?= data.recipientName ?></p>
+            </div>
+            <div class="col-md-6">
+              <p class="mb-1"><strong>金額：</strong>新台幣 <?= data.amount ?> 元整</p>
+              <p class="mb-0"><strong>時數：</strong><?= data.hours ?> 小時</p>
+            </div>
+          </div>
+        </div>
+    
+        <form id="receiptForm">
+          <input type="hidden" id="uniqueId" value="<?= data.uniqueId ?>">
+          
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-bold">身分證字號 <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="idNumber" placeholder="例：A123456789" maxlength="10" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold">聯絡電話 <span class="text-danger">*</span></label>
+              <input type="tel" class="form-control" id="phone" placeholder="例：0912345678" required>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-bold">戶籍地址 <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="address" placeholder="請填寫完整戶籍地址" required>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-bold">服務單位 <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="serviceUnit" placeholder="例：某某公司、某某學校、自由工作者" required>
+            </div>
+          </div>
+
+          <hr class="my-4">
+          <h5 class="text-primary mb-3"><i class="bi bi-bank"></i> 銀行資訊</h5>
+          
+          <div class="row g-3 mb-4">
+            <div class="col-md-4">
+              <label class="form-label fw-bold">銀行代號 <span class="text-danger">*</span></label>
+              <select class="form-select" id="bankCode" required>
+                <option value="">請選擇銀行</option>
+                <option value="004">004 - 臺灣銀行</option>
+                <option value="005">005 - 台灣土地銀行</option>
+                <option value="006">006 - 合作金庫銀行</option>
+                <option value="007">007 - 第一商業銀行</option>
+                <option value="008">008 - 華南商業銀行</option>
+                <option value="009">009 - 彰化商業銀行</option>
+                <option value="012">012 - 台北富邦銀行</option>
+                <option value="013">013 - 國泰世華商業銀行</option>
+                <option value="017">017 - 兆豐國際商業銀行</option>
+                <option value="050">050 - 台灣中小企業銀行</option>
+                <option value="700">700 - 中華郵政</option>
+                <option value="803">803 - 聯邦商業銀行</option>
+                <option value="805">805 - 遠東商業銀行</option>
+                <option value="806">806 - 元大銀行</option>
+                <option value="807">807 - 永豐銀行</option>
+                <option value="808">808 - 玉山商業銀行</option>
+                <option value="812">812 - 台新國際商業銀行</option>
+                <option value="822">822 - 中國信託商業銀行</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-bold">分行代號 <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="branchCode" placeholder="例：0001" maxlength="4" required>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-bold">帳號 <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="accountNumber" placeholder="請輸入完整帳號" required>
+            </div>
+          </div>
+
+          <div class="mb-4">
+            <label class="form-label fw-bold">存摺影本上傳</label>
+            <div class="file-upload" id="bankbook-upload">
+              <i class="bi bi-cloud-upload text-primary" style="font-size: 2rem;"></i>
+              <p class="mb-2 mt-2"><strong>點擊上傳存摺影本</strong></p>
+              <small class="text-muted">支援 JPG、PNG 格式，檔案大小不超過 5MB</small>
+              <input type="file" id="bankbook-file" accept="image/*" style="display:none;">
+            </div>
+            <div id="bankbook-preview" class="mt-3 d-none">
+              <div class="d-flex align-items-center">
+                <img id="bankbook-img" style="max-width:150px;max-height:100px;" class="img-thumbnail me-3">
+                <div>
+                  <p class="mb-1 text-success"><i class="bi bi-check-circle"></i> 檔案上傳成功</p>
+                  <button type="button" class="btn btn-outline-danger btn-sm" id="remove-bankbook">
+                    <i class="bi bi-trash"></i> 移除檔案
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-4">
+            <label class="form-label fw-bold">電子簽名 <span class="text-danger">*</span></label>
+            <p class="text-muted small mb-2">請在下方區域內簽名，支援滑鼠或觸控操作</p>
+            <div class="signature-pad">
+              <canvas id="signature-pad"></canvas>
+            </div>
+            <button type="button" class="btn btn-outline-secondary btn-sm mt-2" id="clear-signature">
+              <i class="bi bi-arrow-clockwise"></i> 清除重簽
+            </button>
+          </div>
+          
+          <div class="d-grid">
+            <button type="submit" class="btn btn-primary btn-lg">
+              <i class="bi bi-check-circle"></i> 提交資料
+            </button>
+          </div>
+        </form>
+        
+        <div id="loading" class="text-center mt-4 d-none">
+          <div class="spinner-border text-primary"></div>
+          <p class="mt-2 text-muted">資料處理中，請稍候...</p>
+        </div>
+        <div id="message" class="mt-3"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
+  <script>
+    const canvas = document.getElementById("signature-pad");
+    const signaturePad = new SignaturePad(canvas, { 
+      backgroundColor: 'white',
+      penColor: 'black',
+      minWidth: 1,
+      maxWidth: 3
+    });
+    let bankbookImage = null;
+    
+    function resizeCanvas() {
+      const ratio = Math.max(window.devicePixelRatio || 1, 1);
+      canvas.width = canvas.offsetWidth * ratio;
+      canvas.height = canvas.offsetHeight * ratio;
+      canvas.getContext("2d").scale(ratio, ratio);
+      signaturePad.clear();
+    }
+    window.addEventListener("resize", resizeCanvas);
+    resizeCanvas();
+    
+    document.getElementById("clear-signature").addEventListener("click", () => {
+      signaturePad.clear();
+    });
+    
+    // 檔案上傳處理
+    document.getElementById("bankbook-upload").addEventListener("click", () => {
+      document.getElementById("bankbook-file").click();
+    });
+    
+    document.getElementById("bankbook-file").addEventListener("change", function(e) {
+      const file = e.target.files[0];
+      if (file) {
+        if (file.size > 5 * 1024 * 1024) {
+          alert('檔案大小不能超過 5MB');
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          bankbookImage = e.target.result;
+          document.getElementById("bankbook-img").src = bankbookImage;
+          document.getElementById("bankbook-preview").classList.remove("d-none");
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+    
+    document.getElementById("remove-bankbook").addEventListener("click", () => {
+      bankbookImage = null;
+      document.getElementById("bankbook-preview").classList.add("d-none");
+      document.getElementById("bankbook-file").value = '';
+    });
+    
+    document.getElementById("receiptForm").addEventListener("submit", function(e) {
+      e.preventDefault();
+      
+      if (signaturePad.isEmpty()) {
+        alert("請提供電子簽名");
+        return;
+      }
+      
+      document.getElementById("loading").classList.remove("d-none");
+      document.querySelector('button[type="submit"]').disabled = true;
+
+      google.script.run
+        .withSuccessHandler(response => {
+          document.getElementById("loading").classList.add("d-none");
+          const msgDiv = document.getElementById("message");
+          
+          if (response.includes("成功")) {
+            msgDiv.innerHTML = `<div class="alert alert-success border-0"><i class="bi bi-check-circle"></i> ${response}</div>`;
+            document.getElementById("receiptForm").style.display = 'none';
+          } else {
+            msgDiv.innerHTML = `<div class="alert alert-danger border-0"><i class="bi bi-x-circle"></i> ${response}</div>`;
+            document.querySelector('button[type="submit"]').disabled = false;
+          }
+        })
+        .withFailureHandler(error => {
+          document.getElementById("loading").classList.add("d-none");
+          document.getElementById("message").innerHTML = `<div class="alert alert-danger border-0"><i class="bi bi-x-circle"></i> 系統錯誤：${error.message}</div>`;
+          document.querySelector('button[type="submit"]').disabled = false;
+        })
+        .processFormSubmission({
+          uniqueId: document.getElementById("uniqueId").value,
+          idNumber: document.getElementById("idNumber").value,
+          address: document.getElementById("address").value,
+          phone: document.getElementById("phone").value,
+          serviceUnit: document.getElementById("serviceUnit").value,
+          bankCode: document.getElementById("bankCode").value,
+          branchCode: document.getElementById("branchCode").value,
+          accountNumber: document.getElementById("accountNumber").value,
+          bankbookImage: bankbookImage,
+          signature: signaturePad.toDataURL("image/png")
+        });
+    });
+  </script>
+
+<? } ?>
+
+<script>
+function getStatusBadge(status) {
+  const badges = { 
+    'Pending': 'bg-secondary', 
+    'Sent': 'bg-info', 
+    'Submitted': 'bg-success', 
+    'Error': 'bg-danger' 
+  };
+  const labels = {
+    'Pending': '待處理',
+    'Sent': '已發送',
+    'Submitted': '已提交',
+    'Error': '錯誤'
+  };
+  return `<span class="badge ${badges[status] || 'bg-light text-dark'} status-badge">${labels[status] || status}</span>`;
+}
+
+function loadRecords() {
+  document.getElementById('records-loading').classList.remove('d-none');
+  document.getElementById('records-table-container').classList.add('d-none');
+  
+  google.script.run
+    .withSuccessHandler(records => {
+      const tbody = document.getElementById('records-tbody');
+      if (records.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">暫無紀錄</td></tr>';
+      } else {
+        tbody.innerHTML = records.map(rec => 
+          `<tr>
+            <td>${getStatusBadge(rec.status)}</td>
+            <td><small>${rec.receipt_header || 'N/A'}</small></td>
+            <td><strong>${rec.recipient_name}</strong></td>
+            <td><small>${rec.recipient_email}</small></td>
+            <td><span class="badge bg-light text-dark">$${rec.amount}</span></td>
+            <td><span class="badge bg-light text-dark">${rec.hours}h</span></td>
+            <td><small>${rec.event_name}</small></td>
+            <td><small>${rec.submission_timestamp || '未提交'}</small></td>
+            <td>
+              <button class="btn btn-sm btn-primary ${rec.status !== 'Submitted' ? 'disabled' : ''}" 
+                      onclick="generatePdf('${rec.uniqueId}', this)"
+                      ${rec.status !== 'Submitted' ? 'disabled' : ''}>
+                <i class="bi bi-file-earmark-pdf"></i> PDF
+              </button>
+            </td>
+          </tr>`
+        ).join('');
+      }
+      document.getElementById('records-loading').classList.add('d-none');
+      document.getElementById('records-table-container').classList.remove('d-none');
+    })
+    .withFailureHandler(err => {
+      document.getElementById('records-loading').innerHTML = `<p class="text-danger text-center">載入失敗：${err.message}</p>`;
+    })
+    .getRecords();
+}
+
+function generatePdf(uniqueId, btn) {
+  if (btn.classList.contains('disabled')) return;
+  
+  const originalText = btn.innerHTML;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 產製中...';
+  btn.disabled = true;
+
+  google.script.run
+    .withSuccessHandler(response => {
+      if (response.success) {
+        window.open(response.url, '_blank');
+        if (response.message) {
+          alert(`✅ ${response.message}`);
+        }
+        loadRecords();
+      } else {
+        alert(`❌ 產生失敗：${response.message}`);
+      }
+      btn.innerHTML = originalText;
+      btn.disabled = false;
+    })
+    .withFailureHandler(err => {
+      alert(`❌ 系統錯誤：${err.message}`);
+      btn.innerHTML = originalText;
+      btn.disabled = false;
+    })
+    .generatePdf(uniqueId);
+}
+</script>
+
+</body>
+</html>
